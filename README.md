@@ -167,7 +167,7 @@ void CanSolverTest()
         can.print_results(res[1]);
 
         std::cout << "\nHead Passed: "<< (nom.getBest() == res[0])  << "\n";
-        std::cout << "Data Passed: "<< (nom.getBest() == res[0])  << "\n\n";
+        std::cout << "Data Passed: "<< (nom.getBest() == res[1])  << "\n\n";
     }
 
 }
