@@ -2,7 +2,7 @@
  * CanSolver.cpp
  *
  *  Created on: Dec 10, 2024
- *      Author: admin
+ *      Author: Shpegun60
  */
 
 #include "CanSolver.h"
