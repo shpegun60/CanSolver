@@ -80,3 +80,89 @@
     inline static Result calculate4_can(const Input &head);
     inline static std::array<Result, 2> calculate4_fdcan(const Input &head, const Input &data);
 ```
+## Test
+
+```cpp
+void CanSolverTest()
+{
+    CanSolver nom;
+    CanSolver::Input nominal {
+        100000000, // clock
+        1,        // clock_divider
+        1000000,  // rate
+        75,       // sampling_point_min
+        80,       // sampling_point_max
+        1,        // prescaler_min
+        512,      // prescaler_max
+        1,        // time_seg1_min
+        256,      // time_seg1_max
+        1,        // time_seg2_min
+        128,      // time_seg2_max
+        1,        // sjw_min
+        128,      // sjw_max
+        0.1f      // baudrate_tolerance
+    };
+
+
+    {
+        nom.calculate1(nominal);
+        nom.remove_duplicates();
+        nom.sort();
+        std::cout << "Results for First Algititm:\n";
+        nom.print_results();
+        std::cout << "Benchmark: " << nom.getBenchmark() << "\n";
+        std::cout << "\n";
+    }
+
+    {
+        nom.calculate2(nominal);
+        nom.remove_duplicates();
+        nom.sort();
+        std::cout << "Results for Second Algititm:\n";
+        nom.print_results();
+        std::cout << "Benchmark: " << nom.getBenchmark() << "\n";
+        std::cout << "\n";
+    }
+
+    {
+        nom.calculate3(nominal);
+        nom.remove_duplicates();
+        nom.sort();
+        std::cout << "Results for Third Algititm:\n";
+        nom.print_results();
+        std::cout << "Benchmark: " << nom.getBenchmark() << "\n";
+        std::cout << "\n";
+    }
+
+    {
+        nom.calculate4(nominal);
+        nom.remove_duplicates();
+        nom.sort();
+        std::cout << "Results for Four Algititm:\n";
+        nom.print_results();
+        std::cout << "Benchmark: " << nom.getBenchmark() << "\n";
+        std::cout << "\n";
+    }
+
+    {
+        std::cout << "Results for Simple CAN:\n";
+        CanSolver can;
+        auto res = CanSolver::calculate4_can(nominal);
+        can.print_results(res);
+
+        std::cout << "\nPassed: "<< (nom.getBest() == res)  << "\n\n";
+    }
+
+    {
+        std::cout << "Results for FDCAN:\n";
+        CanSolver can;
+        auto res = CanSolver::calculate4_fdcan(nominal, nominal);
+        can.print_results(res[0]);
+        can.print_results(res[1]);
+
+        std::cout << "\nHead Passed: "<< (nom.getBest() == res[0])  << "\n";
+        std::cout << "Data Passed: "<< (nom.getBest() == res[0])  << "\n\n";
+    }
+
+}
+```
