@@ -3,7 +3,7 @@
 * [calculate1](https://github.com/phryniszak/stm32g-fdcan)
 * [calculate2](https://github.com/waszil/can_bit_timing_calculator/tree/master)
 * [calculate3](https://github.com/rhyttr/SocketCAN/blob/master/can-utils/can-calc-bit-timing.c)
-* [calculate3](https://github.com/shpegun60/MCP251XFD/blob/master/Core/MCP251XFD/MCP251XFD.c)
+* [calculate4](https://github.com/shpegun60/MCP251XFD/blob/master/Core/MCP251XFD/MCP251XFD.c)
 
 ```cpp
 
