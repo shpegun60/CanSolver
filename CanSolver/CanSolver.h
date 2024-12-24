@@ -69,50 +69,22 @@
  *
  */
 
-#ifndef _TOOLS_CAN_CANSOLVER_H_
-#define _TOOLS_CAN_CANSOLVER_H_
+#ifndef STM32_TOOLS_CAN_CANSOLVER_H_
+#define STM32_TOOLS_CAN_CANSOLVER_H_
 
 #include "basic_types.h"
-#include <tuple>
+#include <vector>
 #include <array>
+#include <tuple>
 
-/*
- * Arguments for enable code parts:
- * Qt in .pro file: DEFINES += CANSOLVER_TEST=1 CANSOLVER_PRINT=1 CANSOLVER_MINIMUM=0
- * Eclipse: need add preprocessor variables to: compiler settings/preprocessor CANSOLVER_TEST=1 CANSOLVER_PRINT=1 CANSOLVER_MINIMUM=0
- * CMake: add_definitions(-DCANSOLVER_PRINT=1 -DCANSOLVER_TEST=1 -DCANSOLVER_MINIMUM=0)
- * clang: g++ -DCANSOLVER_PRINT=1 -DCANSOLVER_TEST=1 -DCANSOLVER_MINIMUM=0
- * Microcontroller: nothing to add, all hard function is disabled
- */
-
-// main settings for this class
-#ifndef CANSOLVER_PRINT
-#   define CANSOLVER_PRINT 0
-#endif /* CANSOLVER_PRINT */
-
-#ifndef CANSOLVER_TEST
-#   define CANSOLVER_TEST 0
-#endif /* CANSOLVER_TEST */
-
-#ifndef CANSOLVER_MINIMUM
-#   define CANSOLVER_MINIMUM 1
-#endif /* CANSOLVER_TEST */
-
-#if CANSOLVER_MINIMUM == 0
-#   include <vector>
-#endif /* CANSOLVER_MINIMUM */
+#define CANSOLVER_PRINT 1
+#define CANSOLVER_TEST 1
 
 class CanSolver
 {
 public:
-
-#if CANSOLVER_MINIMUM == 0
     CanSolver() = default;
     ~CanSolver() = default;
-#else
-    CanSolver() = delete;
-    ~CanSolver() = delete;
-#endif /* CANSOLVER_MINIMUM == 0 */
 
     struct Result {
         u32 bitrate;             // result bit rate [bit/sec]
@@ -156,25 +128,23 @@ public:
         float baudrate_tolerance = 1.0f; // Allowed tolerance for the deviation of the actual bit rate from the desired rate, in percent.
     };
 
-#if CANSOLVER_MINIMUM == 0
-public:
     /*
      * Estimated cost = (prescaler_max - prescaler_min) * (sampling_point_min - sampling_point_max) / 0.1  --> FAST
-     * from https://github.com/phryniszak/stm32g-fdcan
-     */
+	 * from https://github.com/phryniszak/stm32g-fdcan
+	 */
     const Result& calculate1(const Input& in);          	// Computes all possible CAN timing configurations based on the input parameters.
 
     /*
-     * Estimated cost = (time_seg1_max - time_seg1_min) * (time_seg2_max - time_seg2_min)
-     *
-     * from https://github.com/waszil/can_bit_timing_calculator/tree/master
-     */
+	 * Estimated cost = (time_seg1_max - time_seg1_min) * (time_seg2_max - time_seg2_min)
+	 *
+	 * from https://github.com/waszil/can_bit_timing_calculator/tree/master
+	 */
     const Result& calculate2(const Input& in);			// Computes all possible CAN timing configurations based on the input parameters.
 
     /*
      * Estimated cost = ???
      * from https://github.com/rhyttr/SocketCAN/blob/master/can-utils/can-calc-bit-timing.c
-     */
+	 */
     const Result& calculate3(const Input& in);			// Computes all possible CAN timing configurations based on the input parameters.
 
     /*
@@ -183,16 +153,6 @@ public:
      */
     const Result& calculate4(const Input &in);
 
-private:
-    // method need for calculate3
-    static int calculate3_helper(const Input &in, u8 SyncSegment, int sampl_pt, int tseg, int *tseg1, int *tseg2);
-    Result calculate3_helper_2(const Input &in, double freq, u8 SyncSegment, long best_error, long error, int sampl_pt, int best_tseg, int *tseg1, int *tseg2, int best_brp);
-    // method need for calculate4
-    Result calculate4_helper(const Input &in, double freq, u8 SyncSegment, u32 BRP, u32 TQbits);
-
-#endif /* CANSOLVER_MINIMUM */
-
-public:
     /*
      * Methods for microcontrollers (based on calculate4)
      */
@@ -200,10 +160,15 @@ public:
     inline static std::array<Result, 2> calculate4_fdcan(const Input &head, const Input &data);
 
 private:
+    // method need for calculate3
+    static int calculate3_helper(const Input &in, u8 SyncSegment, int sampl_pt, int tseg, int *tseg1, int *tseg2);
+    Result calculate3_helper_2(const Input &in, double freq, u8 SyncSegment, long best_error, long error, int sampl_pt, int best_tseg, int *tseg1, int *tseg2, int best_brp);
+    // method need for calculate4
+    Result calculate4_helper(const Input &in, double freq, u8 SyncSegment, u32 BRP, u32 TQbits);
+
     // method need for calculate4_can or calculate4_fdcan
     static Result calculate_simple(const Input &in);
 
-#if CANSOLVER_MINIMUM == 0
 public:
     inline Result getBest() const { return m_best; }
     void remove_duplicates();                 			// Removes duplicate results to ensure the results list contains only unique configurations.
@@ -234,17 +199,11 @@ public:
     void print_results(const Result);                   // Prints the calculated results to the console, limited by max_rows. Displays the best result as well.
 #endif /* CANSOLVER_PRINT */
 
-#if CANSOLVER_TEST
-    //provides a well-structured example of how to use the solver.
-    static void test();
-#endif /* CANSOLVER_TEST */
-
 
 public:
     std::vector<Result> m_results;  // Container holding all valid results of the CAN timing calculations.
     Result m_best = {};             // Stores the best result based on predefined criteria (e.g., lowest prescaler and smallest frequency deviation).
     reg counts = 0;
-#endif /* CANSOLVER_MINIMUM */
 };
 
 
@@ -262,4 +221,9 @@ std::array<CanSolver::Result, 2> CanSolver::calculate4_fdcan(const Input &head, 
     return result;
 }
 
-#endif /* _TOOLS_CAN_CANSOLVER_H_ */
+#if CANSOLVER_TEST
+//provides a well-structured example of how to use the solver.
+void CanSolverTest();
+#endif /* CANSOLVER_TEST */
+
+#endif /* STM32_TOOLS_CAN_CANSOLVER_H_ */

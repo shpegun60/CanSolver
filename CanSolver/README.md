@@ -5,20 +5,11 @@
 * [STM32G4 FDCAN :: Create by : phryniszak](https://phryniszak.github.io/stm32g-fdcan/)
 
 All algorithms is tested on those site`s
-## Algoritms
+## Algorithms
 * [calculate1](https://github.com/phryniszak/stm32g-fdcan)
 * [calculate2](https://github.com/waszil/can_bit_timing_calculator/tree/master)
 * [calculate3](https://github.com/rhyttr/SocketCAN/blob/master/can-utils/can-calc-bit-timing.c)
-* [calculate4](https://github.com/shpegun60/MCP251XFD/blob/master/Core/MCP251XFD/MCP251XFD.c)
-
-## Arguments for enable code parts:
- * **Qt in .pro file**: DEFINES += CANSOLVER_TEST=1 CANSOLVER_PRINT=1 CANSOLVER_MINIMUM=0
- * **Eclipse**: need add preprocessor variables to: compiler settings/preprocessor CANSOLVER_TEST=1 CANSOLVER_PRINT=1 CANSOLVER_MINIMUM=0
- * **CMake**: add_definitions(-DCANSOLVER_PRINT=1 -DCANSOLVER_TEST=1 -DCANSOLVER_MINIMUM=0)
- * **clang**: g++ -DCANSOLVER_PRINT=1 -DCANSOLVER_TEST=1 -DCANSOLVER_MINIMUM=0
- * **Microcontroller**: nothing to add, all hard function is disabled
-
-
+* [calculate4 from MCP251XFD](https://github.com/shpegun60/MCP251XFD/blob/master/Core/MCP251XFD/MCP251XFD.c)
 
 ```cpp
 
@@ -98,7 +89,7 @@ All algorithms is tested on those site`s
 ## Test
 
 ```cpp
-void CanSolver::test()
+void CanSolverTest()
 {
     CanSolver nom;
     CanSolver::Input nominal {
@@ -176,7 +167,7 @@ void CanSolver::test()
         can.print_results(res[1]);
 
         std::cout << "\nHead Passed: "<< (nom.getBest() == res[0])  << "\n";
-        std::cout << "Data Passed: "<< (nom.getBest() == res[0])  << "\n\n";
+        std::cout << "Data Passed: "<< (nom.getBest() == res[1])  << "\n\n";
     }
 
 }

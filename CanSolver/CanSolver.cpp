@@ -7,17 +7,14 @@
 
 #include "CanSolver.h"
 
-#if CANSOLVER_MINIMUM == 0
-
 #if CANSOLVER_PRINT || CANSOLVER_TEST
-#   include <iostream>
-#   include <iomanip>
+#include <iostream>
+#include <iomanip>
 #endif /* CANSOLVER_PRINT || CANSOLVER_TEST */
 
 #include <algorithm>
 #include <cmath>
 #include <unordered_set>
-
 
 const CanSolver::Result& CanSolver::calculate1(const Input &in)
 {
@@ -387,13 +384,13 @@ const CanSolver::Result& CanSolver::calculate4(const Input &in)
 
         while(--BRP >= in.prescaler_min) {
             const u32 NTQbits = static_cast<u32>(tfdcan_tq_clk) / in.rate / BRP;    // Calculate the NTQbits according to BRP and the desired Nominal Bitrate
-            ++counts;
 
             if ((NTQbits < TQBIT_MIN) || (NTQbits > TQBIT_MAX)) {
+                ++counts;
                 continue;   // This TQbits count is not possible with this BRP, then do the next BRP value
             }
 
-            // NTQ bits count
+            // NTQ & DTQ bits count
             ErrorNTQ = (static_cast<int>(tfdcan_tq_clk) - (in.rate * NTQbits * BRP));     // Calculate NTQ error
             ErrorTQ = ErrorNTQ;
 
@@ -405,7 +402,7 @@ const CanSolver::Result& CanSolver::calculate4(const Input &in)
                 calculate4_helper(in, tfdcan_tq_clk, SyncSegment, BestBRP, BestNTQbits);
             }
 
-            // NTQ+1 bits count
+            // NTQ+1 & DTQ bits count
             if (NTQbits < TQBIT_MAX) {
                 ErrorNTQ = ((in.rate * (NTQbits+1) * BRP) - static_cast<u32>(tfdcan_tq_clk)); // Calculate NTQ error with NTQbits+1
                 ErrorTQ = ErrorNTQ;
@@ -431,6 +428,122 @@ const CanSolver::Result& CanSolver::calculate4(const Input &in)
 
     return m_best;
 }
+
+
+CanSolver::Result CanSolver::calculate_simple(const Input &in)
+{
+    const u32 fsysclk = in.clock / in.clock_divider;
+    const u8 SyncSegment = 1;
+
+    // main calc
+    {
+        // Time quanta boarders
+        const u32 TQBIT_MIN = std::max(static_cast<u32>(SyncSegment + in.time_seg1_min + in.time_seg2_min), static_cast<u32>(4));
+        const u32 TQBIT_MAX = SyncSegment + in.time_seg1_max + in.time_seg2_max;
+
+        // Bit rate prescalar boarders
+        const u32 BRP_MIN = in.prescaler_min;
+        const u32 BRP_MAX = in.prescaler_max;
+
+        // Time seq 1 boarders
+        const u32 TSEG1_MIN = in.time_seg1_min;
+        const u32 TSEG1_MAX = in.time_seg1_max;
+
+        // Time seq 2 boarders
+        const u32 TSEG2_MIN = in.time_seg2_min;
+        const u32 TSEG2_MAX = in.time_seg2_max;
+
+        // Time sjw boarders
+        const u32 SJW_MIN = in.sjw_min;
+        const u32 SJW_MAX = in.sjw_max;
+
+        // BitRate
+        const u32 desiredNominalBitrate = in.rate;
+
+
+        //--- Declaration -----------------------------------------
+        u32 ErrorTQ, ErrorNTQ;
+        u32 BestBRP = BRP_MAX, BestNTQbits = TQBIT_MAX;
+
+        //--- Calculate Nominal & Data Bit Time parameter ---------
+        u32 MinErrorBR = UINT32_MAX;
+
+        // Select the worst BRP value. Here all value from max to min will be tested to get the best tuple of NBRP and DBRP, identical TQ in both phases prevents quantization errors during bit rate switching
+        u32 BRP = BRP_MAX;
+        while (--BRP >= BRP_MIN) {
+
+            // Calculate the NTQbits according to BRP and the desired Nominal Bitrate
+            u32 NTQbits = fsysclk / desiredNominalBitrate / BRP;
+            if((NTQbits < TQBIT_MIN) || (NTQbits > TQBIT_MAX)) {
+                // This TQbits count is not possible with this BRP, then do the next BRP value
+                continue;
+            }
+
+            // NTQ & DTQ bits count
+            ErrorNTQ = (fsysclk - (desiredNominalBitrate * NTQbits * BRP)); // Calculate NTQ error
+            ErrorTQ = ErrorNTQ;
+
+            // If better error then
+            if (ErrorTQ <= MinErrorBR) {
+                // Save best parameters
+                MinErrorBR = ErrorTQ;
+                BestBRP = BRP;
+                BestNTQbits = NTQbits;
+            }
+
+            // NTQ+1 bits count
+            if (NTQbits < TQBIT_MAX) {
+                // Calculate NTQ error with NTQbits+1
+                ErrorNTQ = ((desiredNominalBitrate * (NTQbits+1) * BRP) - fsysclk);
+                ErrorTQ = ErrorNTQ;
+
+                // If better error then
+                if (ErrorTQ <= MinErrorBR) {
+                    // Save best parameters
+                    MinErrorBR = ErrorTQ;
+                    BestBRP = BRP;
+                    BestNTQbits = NTQbits+1;
+                }
+            }
+        }
+
+        if (MinErrorBR == UINT32_MAX) {
+            return Result();          // Impossible to find a good BRP
+        }
+
+        //--- Calculate Nominal segments --------------------------
+        {
+            const u32 brp = BestBRP;                                            // ** Save the best NBRP in the configuration **
+            u32 NTSEG2 = BestNTQbits / 5;                                       // The Nominal Sample Point must be close to 80% (5x20%) of NTQ per bits so NTSEG2 should be 20% of NTQbits
+            if ((BestNTQbits % 5) > 2) NTSEG2++;                                // To be as close as possible to 80%
+            if (NTSEG2 < TSEG2_MIN) NTSEG2 = TSEG2_MIN;                         // Correct NTSEG2 if < 1
+            if (NTSEG2 > TSEG2_MAX) NTSEG2 = TSEG2_MAX;                         // Correct NTSEG2 if > 128
+            const u32 tseg2 = NTSEG2;                                           // ** Save the NTSEG2 in the configuration **
+            u32 NTSEG1 = BestNTQbits - NTSEG2 - SyncSegment;                    // NTSEG1  = NTQbits - NTSEG2 - 1 (NSYNC)
+            if (NTSEG1 < TSEG1_MIN) NTSEG1 = TSEG1_MIN;                         // Correct NTSEG1 if < 1
+            if (NTSEG1 > TSEG1_MAX) NTSEG1 = TSEG1_MAX;                         // Correct NTSEG1 if > 256
+            const u32 tseg1 = NTSEG1;                                           // ** Save the NTSEG1 in the configuration **
+            u32 NSJW = NTSEG2;                                                  // Normally NSJW = NTSEG2, maximizing NSJW lessens the requirement for the oscillator tolerance
+            if (NTSEG1 < NTSEG2) NSJW = NTSEG1;                                 // But NSJW = min(NPHSEG1, NPHSEG2)
+            if (NSJW < SJW_MIN) NSJW = SJW_MIN;                                 // Correct NSJW if < 1
+            if (NSJW > SJW_MAX) NSJW = SJW_MAX;                                 // Correct NSJW if > 128
+            const u32 sjw = NSJW;                                               // ** Save the NSJW in the configuration **
+
+            const u32 time_quanta_per_bit_time = SyncSegment + tseg1 + tseg2;
+            const u32 bitrate = fsysclk / (brp * time_quanta_per_bit_time);
+            const float sample_point = (static_cast<float>(SyncSegment + tseg1) / static_cast<float>(time_quanta_per_bit_time)) * 100.0f;
+
+            // Check for deviation in baud rate tolerance.
+            const float ftq = static_cast<float>(fsysclk / brp);                                               // Calculate frequency of Time Quanta (TQ) clock.
+            const float tfq_real = static_cast<float>(time_quanta_per_bit_time * desiredNominalBitrate);       // Actual TQ frequency.
+            const float freq_diff = ((ftq - tfq_real) * 2.0f * 100.0f) / (ftq + tfq_real);
+
+            const Result result = {bitrate, brp, time_quanta_per_bit_time, tseg1, tseg2, sjw, sample_point, freq_diff, true};
+            return result;
+        }
+    }
+}
+
 
 CanSolver::Result CanSolver::calculate4_helper(const Input &in, double freq, u8 SyncSegment, u32 BRP, u32 TQbits)
 {
@@ -464,6 +577,8 @@ CanSolver::Result CanSolver::calculate4_helper(const Input &in, double freq, u8 
     m_results.push_back(result);
     return result;
 }
+
+
 
 
 void CanSolver::sort_prescalar()
@@ -604,40 +719,23 @@ void CanSolver::print_results(Result result)
 
 #if CANSOLVER_TEST
 
-void CanSolver::test()
+void CanSolverTest()
 {
     CanSolver nom;
-    // CanSolver::Input nominal {
-    //     100000000, // clock
-    //     1,        // clock_divider
-    //     1000000,  // rate
-    //     75,       // sampling_point_min
-    //     80,       // sampling_point_max
-    //     1,        // prescaler_min
-    //     512,      // prescaler_max
-    //     1,        // time_seg1_min
-    //     256,      // time_seg1_max
-    //     1,        // time_seg2_min
-    //     128,      // time_seg2_max
-    //     1,        // sjw_min
-    //     128,      // sjw_max
-    //     0.1f      // baudrate_tolerance
-    // };
-
     CanSolver::Input nominal {
         100000000, // clock
         1,        // clock_divider
-        2500000,  // rate
+        1000000,  // rate
         75,       // sampling_point_min
         80,       // sampling_point_max
         1,        // prescaler_min
-        32,      // prescaler_max
+        512,      // prescaler_max
         1,        // time_seg1_min
-        32,      // time_seg1_max
+        256,      // time_seg1_max
         1,        // time_seg2_min
-        16,      // time_seg2_max
+        128,      // time_seg2_max
         1,        // sjw_min
-        16,      // sjw_max
+        128,      // sjw_max
         0.1f      // baudrate_tolerance
     };
 
@@ -699,130 +797,12 @@ void CanSolver::test()
         can.print_results(res[1]);
 
         std::cout << "\nHead Passed: "<< (nom.getBest() == res[0])  << "\n";
-        std::cout << "Data Passed: "<< (nom.getBest() == res[1])  << "\n\n";
+        std::cout << "Data Passed: "<< (nom.getBest() == res[0])  << "\n\n";
     }
 
 }
 
 #endif /* CANSOLVER_TEST */
-#endif /* CANSOLVER_MINIMUM */
-
-
-
-CanSolver::Result CanSolver::calculate_simple(const Input &in)
-{
-    const u32 fsysclk = in.clock / in.clock_divider;
-    const u8 SyncSegment = 1;
-
-    // main calc
-    {
-        // Time quanta boarders
-        const u32 TQBIT_MIN = std::max(static_cast<u32>(SyncSegment + in.time_seg1_min + in.time_seg2_min), static_cast<u32>(4));
-        const u32 TQBIT_MAX = SyncSegment + in.time_seg1_max + in.time_seg2_max;
-
-        // Bit rate prescalar boarders
-        const u32 BRP_MIN = in.prescaler_min;
-        const u32 BRP_MAX = in.prescaler_max;
-
-        // Time seq 1 boarders
-        const u32 TSEG1_MIN = in.time_seg1_min;
-        const u32 TSEG1_MAX = in.time_seg1_max;
-
-        // Time seq 2 boarders
-        const u32 TSEG2_MIN = in.time_seg2_min;
-        const u32 TSEG2_MAX = in.time_seg2_max;
-
-        // Time sjw boarders
-        const u32 SJW_MIN = in.sjw_min;
-        const u32 SJW_MAX = in.sjw_max;
-
-        // BitRate
-        const u32 desiredNominalBitrate = in.rate;
-
-
-        //--- Declaration -----------------------------------------
-        u32 ErrorTQ, ErrorNTQ;
-        u32 BestBRP = BRP_MAX, BestNTQbits = TQBIT_MAX;
-
-        //--- Calculate Nominal & Data Bit Time parameter ---------
-        u32 MinErrorBR = UINT32_MAX;
-
-        // Select the worst BRP value. Here all value from max to min will be tested to get the best tuple of NBRP and DBRP, identical TQ in both phases prevents quantization errors during bit rate switching
-        u32 BRP = BRP_MAX;
-        while (--BRP >= BRP_MIN) {
-
-            // Calculate the NTQbits according to BRP and the desired Nominal Bitrate
-            const u32 NTQbits = fsysclk / desiredNominalBitrate / BRP;
-            if((NTQbits < TQBIT_MIN) || (NTQbits > TQBIT_MAX)) {
-                // This TQbits count is not possible with this BRP, then do the next BRP value
-                continue;
-            }
-
-            // NTQ & DTQ bits count
-            ErrorNTQ = (fsysclk - (desiredNominalBitrate * NTQbits * BRP)); // Calculate NTQ error
-            ErrorTQ = ErrorNTQ;
-
-            // If better error then
-            if (ErrorTQ <= MinErrorBR) {
-                // Save best parameters
-                MinErrorBR = ErrorTQ;
-                BestBRP = BRP;
-                BestNTQbits = NTQbits;
-            }
-
-            // NTQ+1 bits count
-            if (NTQbits < TQBIT_MAX) {
-                // Calculate NTQ error with NTQbits+1
-                ErrorNTQ = ((desiredNominalBitrate * (NTQbits+1) * BRP) - fsysclk);
-                ErrorTQ = ErrorNTQ;
-
-                // If better error then
-                if (ErrorTQ <= MinErrorBR) {
-                    // Save best parameters
-                    MinErrorBR = ErrorTQ;
-                    BestBRP = BRP;
-                    BestNTQbits = NTQbits+1;
-                }
-            }
-        }
-
-        if (MinErrorBR == UINT32_MAX) {
-            return Result();          // Impossible to find a good BRP
-        }
-
-        //--- Calculate Nominal segments --------------------------
-        {
-            const u32 brp = BestBRP;                                            // ** Save the best NBRP in the configuration **
-            u32 NTSEG2 = BestNTQbits / 5;                                       // The Nominal Sample Point must be close to 80% (5x20%) of NTQ per bits so NTSEG2 should be 20% of NTQbits
-            if ((BestNTQbits % 5) > 2) NTSEG2++;                                // To be as close as possible to 80%
-            if (NTSEG2 < TSEG2_MIN) NTSEG2 = TSEG2_MIN;                         // Correct NTSEG2 if < 1
-            if (NTSEG2 > TSEG2_MAX) NTSEG2 = TSEG2_MAX;                         // Correct NTSEG2 if > 128
-            const u32 tseg2 = NTSEG2;                                           // ** Save the NTSEG2 in the configuration **
-            u32 NTSEG1 = BestNTQbits - NTSEG2 - SyncSegment;                    // NTSEG1  = NTQbits - NTSEG2 - 1 (NSYNC)
-            if (NTSEG1 < TSEG1_MIN) NTSEG1 = TSEG1_MIN;                         // Correct NTSEG1 if < 1
-            if (NTSEG1 > TSEG1_MAX) NTSEG1 = TSEG1_MAX;                         // Correct NTSEG1 if > 256
-            const u32 tseg1 = NTSEG1;                                           // ** Save the NTSEG1 in the configuration **
-            u32 NSJW = NTSEG2;                                                  // Normally NSJW = NTSEG2, maximizing NSJW lessens the requirement for the oscillator tolerance
-            if (NTSEG1 < NTSEG2) NSJW = NTSEG1;                                 // But NSJW = min(NPHSEG1, NPHSEG2)
-            if (NSJW < SJW_MIN) NSJW = SJW_MIN;                                 // Correct NSJW if < 1
-            if (NSJW > SJW_MAX) NSJW = SJW_MAX;                                 // Correct NSJW if > 128
-            const u32 sjw = NSJW;                                               // ** Save the NSJW in the configuration **
-
-            const u32 time_quanta_per_bit_time = SyncSegment + tseg1 + tseg2;
-            const u32 bitrate = fsysclk / (brp * time_quanta_per_bit_time);
-            const float sample_point = (static_cast<float>(SyncSegment + tseg1) / static_cast<float>(time_quanta_per_bit_time)) * 100.0f;
-
-            // Check for deviation in baud rate tolerance.
-            const float ftq = static_cast<float>(fsysclk / brp);                                               // Calculate frequency of Time Quanta (TQ) clock.
-            const float tfq_real = static_cast<float>(time_quanta_per_bit_time * desiredNominalBitrate);       // Actual TQ frequency.
-            const float freq_diff = ((ftq - tfq_real) * 2.0f * 100.0f) / (ftq + tfq_real);
-
-            const Result result = {bitrate, brp, time_quanta_per_bit_time, tseg1, tseg2, sjw, sample_point, freq_diff, true};
-            return result;
-        }
-    }
-}
-
 
 
 

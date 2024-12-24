@@ -10,10 +10,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    CanSolver nnn;
-    CanSolver::Input nominal;
-    CanSolver::calculate4_can(nominal);
-    CanSolver::test();
+    CanSolverTest();
 }
 
 MainWindow::~MainWindow()
