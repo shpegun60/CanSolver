@@ -13,16 +13,16 @@ All algorithms is tested on those site`s
 * [calculate4](https://github.com/shpegun60/MCP251XFD/blob/master/Core/MCP251XFD/MCP251XFD.c)
 
 ## Benchmark
-* calulate0 - 	16777216
-* calculate1 -  1912
-* calculate2 -  32768
-* calculate3 -  39066
-* calculate4 -  511
+* **calulate0** -   16777216
+* **calculate1** -  1912
+* **calculate2** -  32768
+* **calculate3** -  39066
+* **calculate4** -  511
 
 
 1) This test shows how many calculations were performed by different algorithms with the same input data.
-2) calculate4_can - This method is based on **calculate4** that is, in terms of speed it is the same. "Benchmark = calculate4 = 511"
-3) calculate4_fdcan - This method is called twice **calculate4**, meaning it calculates the divisors for the head speed and the data separately. "Benchmark = calculate4 * 2 = 511 * 2 = 1022"
+2) **calculate4_can** - This method is based on **calculate4** that is, in terms of speed it is the same. "Benchmark = calculate4 = 511"
+3) **calculate4_fdcan** - This method is called twice **calculate4**, meaning it calculates the divisors for the head speed and the data separately. "Benchmark = calculate4 * 2 = 511 * 2 = 1022"
 
 
 ## Arguments for enable code parts:
