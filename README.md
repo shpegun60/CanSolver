@@ -6,6 +6,7 @@
 
 All algorithms is tested on those site`s
 ## Algoritms
+* **calulate0** - Brute Force Method - The most difficult method!!!! Use only when all methods have failed
 * [calculate1](https://github.com/phryniszak/stm32g-fdcan)
 * [calculate2](https://github.com/waszil/can_bit_timing_calculator/tree/master)
 * [calculate3](https://github.com/rhyttr/SocketCAN/blob/master/can-utils/can-calc-bit-timing.c)
