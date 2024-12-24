@@ -18,6 +18,72 @@
 #include <cmath>
 #include <unordered_set>
 
+const CanSolver::Result& CanSolver::calculate0(const Input &in)
+{
+    const double tfdcan_tq_clk = static_cast<double>(in.clock) / static_cast<double>(in.clock_divider);
+    const u8 SyncSegment = 1;
+
+    m_results.clear();
+    m_best = {}; // Initialize with an empty value.
+    counts = 0;
+
+    if (std::isnan(tfdcan_tq_clk) || std::isnan(in.sampling_point_min) || std::isnan(in.sampling_point_max) || std::isnan(in.baudrate_tolerance)) {
+        return m_best;
+    }
+
+    // main calc
+    {
+        for (u32 prescaler = in.prescaler_min; prescaler <= in.prescaler_max; ++prescaler) {
+            for (u32 TS1 = in.time_seg1_min; TS1 <= in.time_seg1_max; ++TS1) {
+                for (u32 TS2 = in.time_seg2_min; TS2 <= in.time_seg2_max; ++TS2) {
+                    const u32 time_quanta_per_bit_time = SyncSegment + TS1 + TS2;
+                    ++counts;
+
+                    // Minimum number of Time Quanta per bit (SyncSeg(1) + TSeg1(min1) + TSeg2(min1) = 4)
+                    if (time_quanta_per_bit_time < 4) {
+                        continue; // Skip if it does not meet the minimum requirement.
+                    }
+
+                    const double sample_point 		= (static_cast<double>(SyncSegment + TS1) / time_quanta_per_bit_time) * 100.0;
+
+                    if (std::isnan(sample_point) || sample_point < in.sampling_point_min || sample_point > in.sampling_point_max) {
+                        continue;
+                    }
+
+
+                    // Check for deviation in baud rate tolerance.
+                    const double ftq = tfdcan_tq_clk / prescaler; 					// Calculate frequency of Time Quanta (TQ) clock.
+                    const double tfq_real = time_quanta_per_bit_time * in.rate; 	// Actual TQ frequency.
+                    const double freq_diff = ((ftq - tfq_real) * 2.0 * 100.0) / (ftq + tfq_real);
+
+                    if (std::isnan(ftq) || std::isnan(tfq_real) || std::isnan(freq_diff) || std::abs(freq_diff) > in.baudrate_tolerance) {
+                        continue; // Skip if outside tolerance limits.
+                    }
+
+                    const u32 act_sjw = std::max(in.sjw_min, std::min(std::min(TS1, TS2), in.sjw_max));
+                    const u32 bitrate = static_cast<u32>(tfdcan_tq_clk) / (prescaler * (TS1 + TS2 + SyncSegment));
+
+                    const Result result = {bitrate, prescaler, time_quanta_per_bit_time, TS1, TS2, act_sjw,  static_cast<float>(sample_point), static_cast<float>(freq_diff)};
+                    m_results.push_back(result);
+
+                    // Update the best result if:
+                    // - It's the first result or
+                    // - The new result has a smaller prescaler or
+                    // - The same prescaler but a smaller frequency deviation.
+                    if (m_best.prescaler == 0 ||
+                        result.prescaler < m_best.prescaler ||
+                        (result.prescaler == m_best.prescaler && std::abs(result.freq_diff) < std::abs(m_best.freq_diff))) {
+                        m_best = result;
+                        m_best.solutionFinded = true;
+                    }
+                }
+            }
+        }
+    }
+
+    return m_best;
+}
+
 
 const CanSolver::Result& CanSolver::calculate1(const Input &in)
 {
@@ -607,46 +673,56 @@ void CanSolver::print_results(Result result)
 void CanSolver::test()
 {
     CanSolver nom;
-    // CanSolver::Input nominal {
-    //     100000000, // clock
-    //     1,        // clock_divider
-    //     1000000,  // rate
-    //     75,       // sampling_point_min
-    //     80,       // sampling_point_max
-    //     1,        // prescaler_min
-    //     512,      // prescaler_max
-    //     1,        // time_seg1_min
-    //     256,      // time_seg1_max
-    //     1,        // time_seg2_min
-    //     128,      // time_seg2_max
-    //     1,        // sjw_min
-    //     128,      // sjw_max
-    //     0.1f      // baudrate_tolerance
-    // };
-
     CanSolver::Input nominal {
         100000000, // clock
         1,        // clock_divider
-        2500000,  // rate
+        1000000,  // rate
         75,       // sampling_point_min
         80,       // sampling_point_max
         1,        // prescaler_min
-        32,      // prescaler_max
+        512,      // prescaler_max
         1,        // time_seg1_min
-        32,      // time_seg1_max
+        256,      // time_seg1_max
         1,        // time_seg2_min
-        16,      // time_seg2_max
+        128,      // time_seg2_max
         1,        // sjw_min
-        16,      // sjw_max
+        128,      // sjw_max
         0.1f      // baudrate_tolerance
     };
 
+    // CanSolver::Input nominal {
+    //     100000000, // clock
+    //     1,        // clock_divider
+    //     2500000,  // rate
+    //     75,       // sampling_point_min
+    //     80,       // sampling_point_max
+    //     1,        // prescaler_min
+    //     32,      // prescaler_max
+    //     1,        // time_seg1_min
+    //     32,      // time_seg1_max
+    //     1,        // time_seg2_min
+    //     16,      // time_seg2_max
+    //     1,        // sjw_min
+    //     16,      // sjw_max
+    //     0.1f      // baudrate_tolerance
+    // };
+
+
+    {
+        nom.calculate0(nominal);
+        nom.remove_duplicates();
+        nom.sort();
+        std::cout << "Results for Brute Force Method:\n";
+        nom.print_results();
+        std::cout << "Benchmark: " << nom.getBenchmark() << "\n";
+        std::cout << "\n";
+    }
 
     {
         nom.calculate1(nominal);
         nom.remove_duplicates();
         nom.sort();
-        std::cout << "Results for First Algititm:\n";
+        std::cout << "Results for First Method:\n";
         nom.print_results();
         std::cout << "Benchmark: " << nom.getBenchmark() << "\n";
         std::cout << "\n";
