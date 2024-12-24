@@ -126,12 +126,39 @@ void CanSolver::test()
         0.1f      // baudrate_tolerance
     };
 
+    // CanSolver::Input nominal {
+    //     100000000, // clock
+    //     1,        // clock_divider
+    //     2500000,  // rate
+    //     75,       // sampling_point_min
+    //     80,       // sampling_point_max
+    //     1,        // prescaler_min
+    //     32,      // prescaler_max
+    //     1,        // time_seg1_min
+    //     32,      // time_seg1_max
+    //     1,        // time_seg2_min
+    //     16,      // time_seg2_max
+    //     1,        // sjw_min
+    //     16,      // sjw_max
+    //     0.1f      // baudrate_tolerance
+    // };
+
+
+    {
+        nom.calculate0(nominal);
+        nom.remove_duplicates();
+        nom.sort();
+        std::cout << "Results for Brute Force Method:\n";
+        nom.print_results();
+        std::cout << "Benchmark: " << nom.getBenchmark() << "\n";
+        std::cout << "\n";
+    }
 
     {
         nom.calculate1(nominal);
         nom.remove_duplicates();
         nom.sort();
-        std::cout << "Results for First Algititm:\n";
+        std::cout << "Results for First Method:\n";
         nom.print_results();
         std::cout << "Benchmark: " << nom.getBenchmark() << "\n";
         std::cout << "\n";
@@ -184,7 +211,7 @@ void CanSolver::test()
         can.print_results(res[1]);
 
         std::cout << "\nHead Passed: "<< (nom.getBest() == res[0])  << "\n";
-        std::cout << "Data Passed: "<< (nom.getBest() == res[0])  << "\n\n";
+        std::cout << "Data Passed: "<< (nom.getBest() == res[1])  << "\n\n";
     }
 
 }
@@ -192,7 +219,7 @@ void CanSolver::test()
 
 ## Output:
 ```
-Results for First Algititm:
+Results for Brute Force Method:
 Rate[Mb]| Prescaler | TQ/bit | TimeSeg1 | TimeSeg2 | SJW  | SampleP[%] | Diff[%]
 ------------------------------------------------------------------------------- 
     1 |        25 |       4 |        2 |        1 |     1 |         75 |      0 
@@ -200,15 +227,41 @@ Rate[Mb]| Prescaler | TQ/bit | TimeSeg1 | TimeSeg2 | SJW  | SampleP[%] | Diff[%]
     1 |         1 |     100 |       74 |       25 |    25 |         75 |      0 
     1 |         4 |      25 |       18 |        6 |     6 |         76 |      0 
     1 |         2 |      50 |       37 |       12 |    12 |         76 |      0 
-    1 |         1 |     100 |       75 |       24 |    24 |         76 |      0 
-    1 |         1 |     100 |       76 |       23 |    23 |         77 |      0 
-    1 |         2 |      50 |       38 |       11 |    11 |         78 |      0 
-    1 |         1 |     100 |       77 |       22 |    22 |         78 |      0 
-    1 |         1 |     100 |       78 |       21 |    21 |         79 |      0 
-    1 |        20 |       5 |        3 |        1 |     1 |         80 |      0 
+    1 |         1 |     100 |       75 |       24 |    24 |         76 |      0
+    1 |         1 |     100 |       76 |       23 |    23 |         77 |      0
+    1 |         2 |      50 |       38 |       11 |    11 |         78 |      0
+    1 |         1 |     100 |       77 |       22 |    22 |         78 |      0
+    1 |         1 |     100 |       78 |       21 |    21 |         79 |      0
+    1 |        20 |       5 |        3 |        1 |     1 |         80 |      0
     1 |        10 |      10 |        7 |        2 |     2 |         80 |      0 
     1 |         5 |      20 |       15 |        4 |     4 |         80 |      0 
     1 |         4 |      25 |       19 |        5 |     5 |         80 |      0 
+    1 |         2 |      50 |       39 |       10 |    10 |         80 |      0 
+    1 |         1 |     100 |       79 |       20 |    20 |         80 |      0 
+
+------
+The best:
+    1 |         1 |     100 |       74 |       25 |    25 |         75 |      0 
+
+Benchmark: 16777216
+
+Results for First Method:
+Rate[Mb]| Prescaler | TQ/bit | TimeSeg1 | TimeSeg2 | SJW  | SampleP[%] | Diff[%]
+------------------------------------------------------------------------------- 
+    1 |        25 |       4 |        2 |        1 |     1 |         75 |      0 
+    1 |         5 |      20 |       14 |        5 |     5 |         75 |      0
+    1 |         1 |     100 |       74 |       25 |    25 |         75 |      0
+    1 |         4 |      25 |       18 |        6 |     6 |         76 |      0
+    1 |         2 |      50 |       37 |       12 |    12 |         76 |      0
+    1 |         1 |     100 |       75 |       24 |    24 |         76 |      0
+    1 |         1 |     100 |       76 |       23 |    23 |         77 |      0
+    1 |         2 |      50 |       38 |       11 |    11 |         78 |      0
+    1 |         1 |     100 |       77 |       22 |    22 |         78 |      0
+    1 |         1 |     100 |       78 |       21 |    21 |         79 |      0
+    1 |        20 |       5 |        3 |        1 |     1 |         80 |      0
+    1 |        10 |      10 |        7 |        2 |     2 |         80 |      0
+    1 |         5 |      20 |       15 |        4 |     4 |         80 |      0
+    1 |         4 |      25 |       19 |        5 |     5 |         80 |      0
     1 |         2 |      50 |       39 |       10 |    10 |         80 |      0 
     1 |         1 |     100 |       79 |       20 |    20 |         80 |      0 
 
@@ -221,22 +274,22 @@ Benchmark: 1912
 Results for Second Algititm:
 Rate[Mb]| Prescaler | TQ/bit | TimeSeg1 | TimeSeg2 | SJW  | SampleP[%] | Diff[%]
 ------------------------------------------------------------------------------- 
-    1 |        25 |       4 |        2 |        1 |     1 |         75 |      0
-    1 |         5 |      20 |       14 |        5 |     5 |         75 |      0
-    1 |         1 |     100 |       74 |       25 |    25 |         75 |      0
+    1 |        25 |       4 |        2 |        1 |     1 |         75 |      0 
+    1 |         5 |      20 |       14 |        5 |     5 |         75 |      0 
+    1 |         1 |     100 |       74 |       25 |    25 |         75 |      0 
     1 |         4 |      25 |       18 |        6 |     6 |         76 |      0
     1 |         2 |      50 |       37 |       12 |    12 |         76 |      0
-    1 |         1 |     100 |       75 |       24 |    24 |         76 |      0
-    1 |         1 |     100 |       76 |       23 |    23 |         77 |      0
-    1 |         2 |      50 |       38 |       11 |    11 |         78 |      0
-    1 |         1 |     100 |       77 |       22 |    22 |         78 |      0
-    1 |         1 |     100 |       78 |       21 |    21 |         79 |      0 
+    1 |         1 |     100 |       75 |       24 |    24 |         76 |      0 
+    1 |         1 |     100 |       76 |       23 |    23 |         77 |      0 
+    1 |         2 |      50 |       38 |       11 |    11 |         78 |      0 
+    1 |         1 |     100 |       77 |       22 |    22 |         78 |      0 
+    1 |         1 |     100 |       78 |       21 |    21 |79 |      0
     1 |        20 |       5 |        3 |        1 |     1 |         80 |      0 
     1 |        10 |      10 |        7 |        2 |     2 |         80 |      0 
     1 |         5 |      20 |       15 |        4 |     4 |         80 |      0 
     1 |         4 |      25 |       19 |        5 |     5 |         80 |      0 
     1 |         2 |      50 |       39 |       10 |    10 |         80 |      0 
-    1 |         1 |     100 |       79 |       20 |    20 |         80 |      0 
+    1 |         1 |100 |       79 |       20 |    20 |         80 |      0
 
 ------
 The best:
@@ -247,11 +300,11 @@ Benchmark: 32768
 Results for Third Algititm:
 Rate[Mb]| Prescaler | TQ/bit | TimeSeg1 | TimeSeg2 | SJW  | SampleP[%] | Diff[%]
 ------------------------------------------------------------------------------- 
-    1 |        25 |       4 |        2 |        1 |     1 |         75 |      0
-    1 |         5 |      20 |       14 |        5 |     5 |         75 |      0
-    1 |         1 |     100 |       74 |       25 |    25 |         75 |      0
-    1 |         4 |      25 |       18 |        6 |     6 |         76 |      0
-    1 |         2 |      50 |       37 |       12 |    12 |         76 |      0
+    1 |        25 |       4 |        2 |        1 |     1 |         75 |      0 
+    1 |         5 |      20 |       14 |        5 |     5 |         75 |      0 
+    1 |         1 |     100 |       74 |       25 |    25 |         75 |      0 
+    1 |         4 |      25 |       18 |        6 |     6 |         76 |      0 
+    1 |         2 |      50 |       37 |       12 |    12 |         76 |      0 
     1 |         1 |     100 |       75 |       24 |    24 |         76 |      0 
     1 |         1 |     100 |       76 |       23 |    23 |         77 |      0 
     1 |         2 |      50 |       38 |       11 |    11 |         78 |      0 
@@ -266,7 +319,7 @@ Rate[Mb]| Prescaler | TQ/bit | TimeSeg1 | TimeSeg2 | SJW  | SampleP[%] | Diff[%]
 
 ------
 The best:
-    1 |         1 |     100 |       74 |       25 |    25 |         75 |      0 
+    1 |         1 |     100 |       74 |       25 |    25 |         75 |      0
 
 Benchmark: 39066
 
@@ -274,18 +327,18 @@ Results for Four Algititm:
 Rate[Mb]| Prescaler | TQ/bit | TimeSeg1 | TimeSeg2 | SJW  | SampleP[%] | Diff[%]
 ------------------------------------------------------------------------------- 
     1 |        25 |       4 |        2 |        1 |     1 |         75 |      0 
-    1 |   20 |       5 |        3 |        1 |     1 |         80 |      0
+    1 |        20 |       5 |        3 |        1 |     1 |         80 |      0 
     1 |        10 |      10 |        7 |        2 |     2 |         80 |      0 
     1 |         5 |      20 |       15 |        4 |     4 |         80 |      0 
     1 |         4 |      25 |       19 |        5 |     5 |         80 |      0 
     1 |         2 |      50 |       39 |       10 |    10 |         80 |      0 
-    1 |         1 |     100 |       79 |       20 |    20 |         80 |      0 
+    1 |         1 |  100 |       79 |       20 |    20 |         80 |      0
 
 ------
 The best:
     1 |         1 |     100 |       79 |       20 |    20 |         80 |      0 
 
-Benchmark: 486
+Benchmark: 511
 
 Results for Simple CAN:
 Rate[Mb]| Prescaler | TQ/bit | TimeSeg1 | TimeSeg2 | SJW  | SampleP[%] | Diff[%]
