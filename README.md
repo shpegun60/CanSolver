@@ -65,6 +65,13 @@ All algorithms is tested on those site`s
         float baudrate_tolerance = 1.0f; // Allowed tolerance for the deviation of the actual bit rate from the desired rate, in percent.
     };
 
+    /*
+     * Brute Force Method - The most difficult method!!!! Use only when all methods have failed
+     * Estimated cost = (prescaler_max - prescaler_min) * (time_seg1_max - time_seg1_min) * (time_seg2_max - time_seg2_min)
+     * From Shpegun60
+     */
+    const Result& calculate0(const Input& in);
+
   /*
      * Estimated cost = (prescaler_max - prescaler_min) * (sampling_point_min - sampling_point_max) / 0.1  --> FAST
 	 * from https://github.com/phryniszak/stm32g-fdcan
